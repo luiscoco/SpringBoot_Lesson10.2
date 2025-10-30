@@ -1,91 +1,95 @@
-# SpringBoot_Lesson9.2
+# SpringBoot_Lesson10.2
 
 ## Propmt for the Code Agent (Codex, Gemini Code Assistant or Copilot)
 
 **Context**:
 
-I am learning to write integration tests for a Spring Boot REST API using Spring Boot 3.3 and Java 17.
+I am writing a high-fidelity integration test for a Spring Boot application (Spring Boot 3.3, Java 17, Maven). 
 
-I want to test the controller layer and HTTP responses using MockMvc, while mocking the service layer.
-
-The project has Basic auth enabled: endpoint pattern /tasks/** requires role USER, and there is an in-memory user user with password password.
+The goal is to ensure the application works correctly with a real PostgreSQL database using Testcontainers.
 
 **Task**:
 
-Generate a JUnit 5 integration test for a TaskController class.
-
-**Known code in the app**:
-
-Controller: com.example.demo.controller.TaskController
-
-GET /tasks/{id} returns a TaskDto
-
-GET /tasks supports optional completed query param
-
-POST /tasks accepts a Task and returns a TaskDto (201 Created)
-
-Service: com.example.demo.service.TaskService
-
-Methods include TaskDto getTaskById(long id)
-
-DTO: com.example.demo.dto.TaskDto (record: TaskDto(Long id, String description, boolean completed))
-
-Security: Basic auth required for /tasks/**; in-memory user user / password.
+Generate a JUnit 5 integration test that uses Testcontainers to provide a PostgreSQL database.
 
 **Constraints**:
 
-Use @SpringBootTest to load the application context.
+The test class must use @SpringBootTest to load the full application context.
 
-Use @AutoConfigureMockMvc to test the web layer without a real HTTP server.
+The test must be annotated with @Testcontainers.
 
-Mock TaskService with @MockBean.
+It must declare a PostgreSQLContainer field annotated with @Container.
 
-Use MockMvc to perform the request.
+Use @DynamicPropertySource to dynamically set:
 
-Include a Basic auth header for the request (user:password).
+spring.datasource.url
+
+spring.datasource.username
+
+spring.datasource.password
+
+Also override spring.datasource.driver-class-name=org.postgresql.Driver and spring.jpa.database-platform=org.hibernate.dialect.PostgreSQLDialect (the project’s application.properties configures H2 by default).
+
+Set spring.jpa.hibernate.ddl-auto=create-drop so Hibernate creates the schema during the test.
+
+The test should inject a real TaskRepository bean and use it to save and retrieve a Task.
+
+**Project specifics**:
+
+Package: com.example.demo
+
+Entity: Task with fields id (Long), description (String), and completed (boolean).
+
+Repository: TaskRepository extends JpaRepository<Task, Long>.
 
 **Steps**:
 
-Create src/test/java/com/example/demo/controller/TaskControllerTest.java with package com.example.demo.controller.
+Add Testcontainers dependencies and the PostgreSQL JDBC driver to Maven:
 
-Annotate the test class with @SpringBootTest and @AutoConfigureMockMvc.
+org.testcontainers:junit-jupiter:test
 
-Inject MockMvc and declare @MockBean TaskService taskService.
+org.testcontainers:postgresql:test
 
-Stub taskService.getTaskById(1L) to return new TaskDto(1L, "Test Task", false).
+org.postgresql:postgresql:test
 
-Perform a GET request to /tasks/1 with Basic auth for user:password.
+Generate TaskApplicationIntegrationTest.java under src/test/java/com/example/demo.
 
-Assert HTTP status 200 (OK).
+Define a static PostgreSQLContainer<?> (e.g., image postgres:16-alpine) annotated with @Container.
 
-Assert the response is JSON and matches the DTO: id = 1, description = "Test Task", completed = false (e.g., using jsonPath).
+Implement a static @DynamicPropertySource method to set the datasource properties from the running container, including driver-class-name, dialect, and ddl-auto=create-drop.
 
-Include commands to run only this test using Maven or Gradle.
+Write a test method that injects TaskRepository.
 
-**Acceptance Criteria**:
+Inside the test, save a new Task, then retrieve it and assert the data is correct.
 
-The test class is annotated with @SpringBootTest and @AutoConfigureMockMvc.
-
-TaskService is mocked with @MockBean.
-
-The test performs a request using MockMvc and includes Basic auth.
-
-The test verifies HTTP 200 OK.
-
-The test verifies the JSON response body fields.
-
-The test compiles and passes.
+Include the Maven command to run only this test.
 
 **Deliverables**:
 
-Full code for TaskControllerTest.java.
+The required Maven dependencies for Testcontainers PostgreSQL and the PostgreSQL JDBC driver.
 
-Commands to run the test.
+The full code for TaskApplicationIntegrationTest.java.
 
-**Run Only This Test**:
+The command to run the test.
 
-Maven: mvn test -Dtest=com.example.demo.controller.TaskControllerTest
+**Acceptance Criteria**:
 
-Gradle (Windows): gradlew.bat test --tests "com.example.demo.controller.TaskControllerTest"
+The test class has @SpringBootTest and @Testcontainers.
 
-Gradle (Unix/macOS): ./gradlew test --tests "com.example.demo.controller.TaskControllerTest"
+A PostgreSQLContainer is defined and started by the test framework.
+
+@DynamicPropertySource correctly configures datasource URL, username, password, driver-class-name, database-platform, and sets spring.jpa.hibernate.ddl-auto=create-drop.
+
+When run with Docker available, logs show Testcontainers pulling/starting the PostgreSQL image and the application connecting to it.
+
+The test successfully saves and retrieves data from the containerized PostgreSQL instance.
+
+The test passes.
+
+**Run command**:
+
+mvn -Dtest=TaskApplicationIntegrationTest test
+
+**Note**:
+
+Docker Desktop (or an accessible Docker daemon) must be installed and running for Testcontainers.
